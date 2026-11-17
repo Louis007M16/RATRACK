@@ -7,7 +7,7 @@ import { Routes, Route, Navigate } from "react-router"
 import AppLayout from "@/components/ui/AppLayout"
 import Home from "@/pages/Home"
 import Program from "@/pages/Program"
-import Workouts from "@/pages/Workouts"
+import Workouts from "@/features/workouts/WorkoutsPage"
 
 export default function App() {
   return (
