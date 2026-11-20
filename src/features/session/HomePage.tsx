@@ -11,16 +11,15 @@ import { isTrainingDay } from "@/types/split"
 import type { Workout } from "@/types/workout"
 import { useSplitStore } from "@/features/splits/useSplitStore"
 import { useWorkoutStore } from "@/features/workouts/useWorkoutStore"
-import { defaultOverload, suggestNext } from "./overload"
 import { useLogStore } from "./useLogStore"
 import ExercisePanel from "./ExercisePanel"
 import ProgressionDrawer from "./ProgressionDrawer"
+import { suggestNext, targetReps } from "./overload"
 
 export default function HomePage() {
   const splits = useSplitStore((s) => s.splits)
   const workouts = useWorkoutStore((s) => s.workouts)
   const sessions = useLogStore((s) => s.sessions)
-  const settings = useLogStore((s) => s.settings)
   const history = useLogStore((s) => s.history)
   const prs = useLogStore((s) => s.prs)
 
@@ -52,10 +51,10 @@ export default function HomePage() {
 
   const ids = dayWorkouts.map((w) => w.id).join(",")
   useEffect(() => {
+    if (!active) return
     const { ensureSets } = useLogStore.getState()
-    dayWorkouts.forEach((w) => ensureSets(key, w))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, ids])
+    dayWorkouts.forEach((w) => ensureSets(key, w, { splitId: active.id, dayLabel: day?.label ?? "" }))
+  }, [key, ids, active?.id])
 
   useEffect(() => setOpenId(null), [sel])
 
@@ -83,9 +82,9 @@ export default function HomePage() {
 
   const completeRow = (w: Workout, done: boolean) => {
     const res = useLogStore.getState().setAllDone(key, w, !done)
-    if (res.error) { 
-      notify(res.error) 
-      return 
+    if (res.error !== undefined) {
+      notify(res.error)
+      return
     }
     const parts: string[] = []
 
@@ -192,8 +191,8 @@ export default function HomePage() {
                 {dayWorkouts.map((w, i) => {
                   const open = openId === w.id
                   const done = isDone(w)
-                  const o = settings[w.id] ?? defaultOverload
-                  const increase = !done && !!suggestNext(history[w.id], o)?.increase
+                  const target = targetReps(w)
+                  const increase = !done && !!suggestNext(history[w.id], target, w.overload)?.increase
                   const toggle = () => setOpenId(open ? null : w.id)
                   return (
                     <li key={w.id}>
@@ -211,7 +210,7 @@ export default function HomePage() {
                               )}
                             </span>
                             <span className="block text-[11px] text-muted-foreground">
-                              PR: {prs[w.id] != null ? fmtWeight(prs[w.id], w.unit) : "—"} • {o.minReps}-{o.maxReps} reps
+                              PR: {prs[w.id] != null ? fmtWeight(prs[w.id], w.unit) : "—"}{target != null ? ` • ${target} reps` : ""}
                             </span>
                           </span>
                         </button>
@@ -258,7 +257,10 @@ export default function HomePage() {
           workout={progFor}
           open
           onOpenChange={(o) => !o && setProgFor(null)}
-          onSaved={() => useLogStore.getState().applySuggestion(key, progFor)}
+          onSaved={() => {
+            const fresh = useWorkoutStore.getState().workouts.find((x) => x.id === progFor.id)
+            if (fresh) useLogStore.getState().applySuggestion(key, fresh)
+          }}
         />
       )}
 

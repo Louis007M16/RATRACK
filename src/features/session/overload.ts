@@ -1,26 +1,31 @@
-export type Overload = { on: boolean; minReps: number; maxReps: number; stepKg: number }
-export const defaultOverload: Overload = { on: true, minReps: 8, maxReps: 12, stepKg: 2.5 }
+import type { Overload, Workout } from "@/types/workout"
+export type { Overload }
 
 export type Perf = { weightKg: number; reps: number }
 export type Suggestion = { weightKg: number; reps: number; increase: boolean; message: string }
 
-export function suggestNext(last: Perf[] | undefined, o: Overload): Suggestion | null {
-  if (!o.on || !last || last.length === 0) return null
+// target = the reps planned for the workout's normal sets
+export function targetReps(w: Pick<Workout, "sets">): number | null {
+  const reps = w.sets.filter((s) => s.type === "normal" && s.reps != null).map((s) => s.reps as number)
+  return reps.length ? Math.max(...reps) : null
+}
+
+export function suggestNext(last: Perf[] | undefined, target: number | null, o: Overload): Suggestion | null {
+  if (!o.on || !last || last.length === 0 || target == null) return null
   const top = Math.max(...last.map((s) => s.weightKg))
 
-  if (last.every((s) => s.reps >= o.maxReps)) {
+  if (last.every((s) => s.reps >= target)) {
     return {
       weightKg: top + o.stepKg,
-      reps: o.minReps,
+      reps: target,
       increase: true,
-      message: `You hit ${o.maxReps} reps on every set. Add weight.`,
+      message: `You hit ${target} reps on every set. Add weight.`,
     }
   }
-  const lowest = Math.min(...last.map((s) => s.reps))
   return {
     weightKg: top,
-    reps: Math.min(o.maxReps, Math.max(o.minReps, lowest + 1)),
+    reps: target,
     increase: false,
-    message: "Keep the weight and add a rep.",
+    message: `Keep the weight and hit ${target} reps on every set.`,
   }
 }

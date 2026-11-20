@@ -4,27 +4,27 @@ import { fmtWeight, fromKg, roundWeight } from "@/lib/units"
 import { setLabels } from "@/lib/sets"
 import { cn } from "@/lib/utils"
 import type { Workout } from "@/types/workout"
-import { defaultOverload, suggestNext } from "./overload"
-import { EMPTY, useLogStore, type ToggleResult } from "./useLogStore"
 import { useTimerStore } from "./useTimerStore"
 import TimerCard from "./TimerCard"
+import { suggestNext, targetReps } from "./overload"
+import { EMPTY, useLogStore, type ToggleResult } from "./useLogStore"
 
 type Props = { dateKey: string; workout: Workout; onNotice: (m: string) => void }
 
 export default function ExercisePanel({ dateKey, workout, onNotice }: Props) {
   const sets = useLogStore((s) => s.sessions[dateKey]?.[workout.id]) ?? EMPTY
   const history = useLogStore((s) => s.history[workout.id])
-  const o = useLogStore((s) => s.settings[workout.id]) ?? defaultOverload
   const timer = useTimerStore()
 
   const labels = setLabels(sets.map((s) => ({ type: s.type })))
-  const sug = suggestNext(history, o)
+  const o = workout.overload
+  const sug = suggestNext(history, targetReps(workout), o)
   const last = history?.length
     ? `${fmtWeight(Math.max(...history.map((h) => h.weightKg)), workout.unit)} x ${history.map((h) => h.reps).join(", ")}`
     : null
 
   const handle = (res: ToggleResult) => {
-    if (res.error) { onNotice(res.error); return }
+    if (res.error !== undefined) { onNotice(res.error); return }
     const parts: string[] = []
     if (res.pr) parts.push("New PR")
     if (res.finished) {

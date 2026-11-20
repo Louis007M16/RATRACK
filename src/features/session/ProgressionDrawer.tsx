@@ -3,28 +3,24 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
 import { fromKg, roundWeight, toKg } from "@/lib/units"
-import { cleanDecimal, cleanInt, MAX_REPS } from "@/lib/validation"
+import { cleanDecimal } from "@/lib/validation"
 import { cn } from "@/lib/utils"
 import type { Workout } from "@/types/workout"
-import { defaultOverload } from "./overload"
-import { useLogStore } from "./useLogStore"
+import { useWorkoutStore } from "@/features/workouts/useWorkoutStore"
+import { targetReps } from "@/features/session/overload"
 
 function Form({ workout, onClose, onSaved }: { workout: Workout; onClose: () => void; onSaved?: () => void }) {
-  const current = useLogStore((s) => s.settings[workout.id]) ?? defaultOverload
-  const save = useLogStore((s) => s.saveSettings)
+  const current = workout.overload
+  const save = useWorkoutStore((s) => s.setOverload)
   const [on, setOn] = useState(current.on)
-  const [min, setMin] = useState(String(current.minReps))
-  const [max, setMax] = useState(String(current.maxReps))
   const [step, setStep] = useState(String(roundWeight(fromKg(current.stepKg, workout.unit))))
   const [error, setError] = useState("")
+  const target = targetReps(workout)
 
   const submit = () => {
-    const mn = Number(min), mx = Number(max), st = Number(step)
-    if (!Number.isInteger(mn) || mn < 1) return setError("Min reps must be at least 1")
-    if (!Number.isInteger(mx) || mx > MAX_REPS) return setError(`Max reps can be up to ${MAX_REPS}`)
-    if (mx < mn) return setError("Max reps can't be lower than min reps")
+    const st = Number(step)
     if (!Number.isFinite(st) || st <= 0 || toKg(st, workout.unit) > 50) return setError("Enter a weight step above 0")
-        save(workout.id, { on, minReps: mn, maxReps: mx, stepKg: toKg(st, workout.unit) })
+    save(workout.id, { on, stepKg: toKg(st, workout.unit) })
     onSaved?.()
     onClose()
   }
@@ -34,7 +30,7 @@ function Form({ workout, onClose, onSaved }: { workout: Workout; onClose: () => 
       <div className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3">
         <div>
           <p className="text-sm font-medium">Progressive overload</p>
-          <p className="text-xs text-muted-foreground">Suggest heavier weight when you hit your top reps</p>
+          <p className="text-xs text-muted-foreground">Suggest heavier weight when you hit your reps</p>
         </div>
         <button type="button" role="switch" aria-checked={on} aria-label="Progressive overload"
           onClick={() => setOn(!on)}
@@ -44,26 +40,16 @@ function Form({ workout, onClose, onSaved }: { workout: Workout; onClose: () => 
         </button>
       </div>
 
-      <div className={cn("mt-4 grid grid-cols-3 gap-3 transition-opacity", !on && "opacity-40")}>
-        <div>
-          <label htmlFor="p-min" className="text-xs text-muted-foreground">Min reps</label>
-          <Input id="p-min" inputMode="numeric" disabled={!on} value={min}
-            onChange={(e) => { setMin(cleanInt(e.target.value)); setError("") }} />
-        </div>
-        <div>
-          <label htmlFor="p-max" className="text-xs text-muted-foreground">Max reps</label>
-          <Input id="p-max" inputMode="numeric" disabled={!on} value={max}
-            onChange={(e) => { setMax(cleanInt(e.target.value)); setError("") }} />
-        </div>
-        <div>
-          <label htmlFor="p-step" className="text-xs text-muted-foreground">Add ({workout.unit})</label>
-          <Input id="p-step" inputMode="decimal" disabled={!on} value={step}
-            onChange={(e) => { setStep(cleanDecimal(e.target.value)); setError("") }} />
-        </div>
+      <div className={cn("mt-4 transition-opacity", !on && "opacity-40")}>
+        <label htmlFor="p-step" className="text-xs text-muted-foreground">Add weight ({workout.unit})</label>
+        <Input id="p-step" inputMode="decimal" disabled={!on} value={step}
+          onChange={(e) => { setStep(cleanDecimal(e.target.value)); setError("") }} />
       </div>
 
       <p className="mt-3 text-xs text-muted-foreground">
-        Hit {max || "?"} reps on every set, then add {step || "?"} {workout.unit} and start again at {min || "?"} reps.
+        {target != null
+          ? `Hit ${target} reps on every set, then add ${step || "?"} ${workout.unit} next time.`
+          : "Add reps to this workout's sets in the Workouts tab to start tracking progress."}
       </p>
       {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>}
 
@@ -84,7 +70,7 @@ export default function ProgressionDrawer({ workout, open, onOpenChange, onSaved
         <DrawerHeader className="px-5 pb-3 pt-3 text-left">
           <DrawerTitle>{workout.name}</DrawerTitle>
         </DrawerHeader>
-        <Form key={String(open)} workout={workout} onClose={() => onOpenChange(false)} />
+        <Form key={String(open)} workout={workout} onClose={() => onOpenChange(false)} onSaved={onSaved} />
       </DrawerContent>
     </Drawer>
   )

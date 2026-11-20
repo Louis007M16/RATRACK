@@ -1,3 +1,3 @@
 import { SQLocal } from "sqlocal"
 
-export const { sql, transaction } = new SQLocal("workout-tracker.sqlite3")
+export const { sql, transaction } = new SQLocal("ratrack.sqlite3")

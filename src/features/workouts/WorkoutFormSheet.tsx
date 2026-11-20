@@ -12,7 +12,8 @@ import { MUSCLES } from "@/lib/constants"
 import { fromKg, roundWeight, toKg, type Unit } from "@/lib/units"
 import { cn } from "@/lib/utils"
 import { useWorkoutStore } from "./useWorkoutStore"
-import type { Workout } from "@/types/workout"
+import { DEFAULT_OVERLOAD, type Workout } from "@/types/workout"
+import { useSettingsStore } from "@/features/profile/useSettingsStore"
 
 const num = z.string().regex(/^(\d+(\.\d+)?)?$/, "Numbers only")
 
@@ -24,12 +25,12 @@ const schema = z.object({
 })
 type FormValues = z.infer<typeof schema>
 
-const blank: FormValues = {
+const makeBlank = (unit: Unit): FormValues => ({
   name: "",
   muscle: "",
-  unit: "kg",
+  unit,
   sets: [1, 2, 3].map(() => ({ weight: "", reps: "" })),
-}
+})
 
 const toForm = (w: Workout): FormValues => ({
   name: w.name,
@@ -45,15 +46,16 @@ type Props = { open: boolean; onOpenChange: (o: boolean) => void; workout?: Work
 
 export default function WorkoutFormSheet({ open, onOpenChange, workout }: Props) {
   const save = useWorkoutStore((s) => s.save)
-  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: blank })
+  const defaultUnit = useSettingsStore((s) => s.defaultUnit)
+  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: makeBlank(defaultUnit) })
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "sets" })
   const { register, watch, setValue, handleSubmit, reset, formState: { errors } } = form
   const unit = watch("unit")
   const muscle = watch("muscle")
 
   useEffect(() => {
-    if (open) reset(workout ? toForm(workout) : blank)
-  }, [open, workout, reset])
+    if (open) reset(workout ? toForm(workout) : makeBlank(defaultUnit))
+  }, [open, workout, reset, defaultUnit])
 
   const changeUnit = (next: Unit) => {
     watch("sets").forEach((s, i) => {
@@ -72,13 +74,18 @@ export default function WorkoutFormSheet({ open, onOpenChange, workout }: Props)
         weightKg: s.weight === "" ? null : toKg(Number(s.weight), v.unit),
         reps: s.reps === "" ? null : Number(s.reps),
       }))
-    save({
+    const res = save({
       id: workout?.id,
       name: v.name.trim(),
       muscle: v.muscle as Workout["muscle"],
       unit: workout ? workout.unit : v.unit,
       sets: workout ? workout.sets : newSets,
+      overload: workout?.overload ?? DEFAULT_OVERLOAD,
     })
+    if (!res.ok) {
+      form.setError("name", { message: res.error })
+      return
+    }
     onOpenChange(false)
   }
 

@@ -12,6 +12,7 @@ import WorkoutFormSheet from "./WorkoutFormSheet"
 import SetEditorPanel from "./SetEditorPanel"
 import type { Workout } from "@/types/workout"
 import Collapse from "@/components/shared/Collapse"
+import { useSplitStore } from "@/features/splits/useSplitStore"
 
 export default function WorkoutsPage() {
   const { workouts, remove } = useWorkoutStore()
@@ -34,6 +35,7 @@ export default function WorkoutsPage() {
 
   const openNew = () => { setEditing(undefined); setFormOpen(true) }
   const openEdit = (w: Workout) => { setEditing(w); setFormOpen(true) }
+  const purgeWorkout = useSplitStore((s) => s.purgeWorkout)
 
   return (
     <div>
@@ -117,7 +119,7 @@ export default function WorkoutsPage() {
           <div className="grid grid-cols-2 gap-3 px-5 pb-8 pt-5">
             <Button variant="secondary" size="lg" onClick={() => setDeleting(undefined)}>Cancel</Button>
             <Button variant="destructive" size="lg"
-              onClick={() => { if (deleting) remove(deleting.id); setDeleting(undefined) }}>
+              onClick={() => { if (deleting) { remove(deleting.id); purgeWorkout(deleting.id) } setDeleting(undefined) }}>
               Delete
             </Button>
           </div>

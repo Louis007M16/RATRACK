@@ -12,12 +12,21 @@ import DayProgramPage from "@/features/splits/DayProgramPage"
 import AddWorkoutPage from "@/features/splits/AddWorkoutPage"
 import SplitDetailPage from "@/features/splits/SplitDetailPage"
 import HomePage from "@/features/session/HomePage"
+import DbTest from "@/pages/DbTest"
+import ProfilePage from "@/features/profile/ProfilePage"
+import ProgressPage from "@/features/progress/ProgressPage"
+import WorkoutProgressPage from "@/features/progress/WorkoutProgressPage"
+
 
 export default function App() {
   return (
     <Routes>
       <Route element={<AppLayout />}>
         <Route index element={<HomePage />} />
+        <Route path="profile" element={<ProfilePage />} />
+        <Route path="profile/progress" element={<ProgressPage />} />
+        <Route path="db-test" element={<DbTest />} />
+        <Route path="profile/progress/:id" element={<WorkoutProgressPage />} />
         <Route path="program" element={<SplitsPage />} />
         <Route path="program/schedule" element={<SplitSchedulePage />} />
         <Route path="program/schedule/day/:dow" element={<DayProgramPage />} />
